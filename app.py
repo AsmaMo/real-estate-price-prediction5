@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify
 import pandas as pd
 import numpy as np
 import joblib
+from flask import Flask, request, jsonify
 from sklearn.base import RegressorMixin, BaseEstimator, clone
 
-# ✅ تعريف الكلاس هنا
+# تعريف الكلاس الخاص بك أولاً
 class MedianVotingRegressor(RegressorMixin, BaseEstimator):
     def __init__(self, estimators):
         self.estimators = estimators
@@ -23,8 +23,15 @@ class MedianVotingRegressor(RegressorMixin, BaseEstimator):
         ])
         return np.median(predictions, axis=1)
 
-# ✅ بعده تقوم بتحميل النموذج
-preprocessor, model = joblib.load("real_estate_pipeline.joblib")
+# هنا الحل السحري 👇
+import pickle
+
+def custom_load(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f, encoding='latin1', fix_imports=True)
+
+# أو بشكل صريح:
+preprocessor, model = joblib.load("real_estate_pipeline.joblib", mmap_mode=None)
 
 app = Flask(__name__)
 
