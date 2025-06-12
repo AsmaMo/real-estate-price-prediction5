@@ -2,10 +2,31 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import numpy as np
 import joblib
+from sklearn.base import RegressorMixin, BaseEstimator, clone
+
+# ✅ تعريف الكلاس هنا
+class MedianVotingRegressor(RegressorMixin, BaseEstimator):
+    def __init__(self, estimators):
+        self.estimators = estimators
+
+    def fit(self, X, y):
+        self.fitted_ = []
+        for name, est in self.estimators:
+            model = clone(est)
+            model.fit(X, y)
+            self.fitted_.append((name, model))
+        return self
+
+    def predict(self, X):
+        predictions = np.column_stack([
+            model.predict(X) for _, model in self.fitted_
+        ])
+        return np.median(predictions, axis=1)
+
+# ✅ بعده تقوم بتحميل النموذج
+preprocessor, model = joblib.load("real_estate_pipeline.joblib")
 
 app = Flask(__name__)
-
-preprocessor, model = joblib.load("real_estate_pipeline.joblib")
 
 @app.route("/predict", methods=["POST"])
 def predict():
