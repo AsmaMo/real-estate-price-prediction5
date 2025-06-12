@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify
-import pandas as pd
 import numpy as np
 import joblib
+from flask import Flask, request, jsonify
 from sklearn.base import RegressorMixin, BaseEstimator, clone
 
-# 🔥 أضف هذا التعريف لأنه ضروري لعملية فك التحميل (unpickling)
+# تعريف الكلاس MedianVotingRegressor
 class MedianVotingRegressor(RegressorMixin, BaseEstimator):
     def __init__(self, estimators):
         self.estimators = estimators
@@ -18,27 +17,48 @@ class MedianVotingRegressor(RegressorMixin, BaseEstimator):
         return self
 
     def predict(self, X):
-        predictions = np.column_stack([
-            model.predict(X) for _, model in self.fitted_
-        ])
+        predictions = np.column_stack([model.predict(X) for _, model in self.fitted_])
         return np.median(predictions, axis=1)
 
-# 🔥 بعد تعريف الكلاس يصبح بإمكان joblib أن يعيد تحميل الكائن
+# إنشاء تطبيق Flask
 app = Flask(__name__)
 
+# تحميل الـ preprocessor والنموذج المدرب
 preprocessor, model = joblib.load("real_estate_pipeline.joblib")
 
+# مسار تجريبي للتأكد أن السيرفر يعمل
+@app.route("/")
+def home():
+    return "Real Estate Price Prediction API is running."
+
+# مسار للتنبؤ بالسعر
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        data = request.get_json(force=True)
-        input_df = pd.DataFrame([data])
-        input_processed = preprocessor.transform(input_df)
-        prediction_log = model.predict(input_processed)
-        prediction = np.expm1(prediction_log)[0]
-        return jsonify({"predicted_price": round(float(prediction), 2)})
+        # البيانات المستلمة في صورة JSON
+        input_data = request.json
+        
+        # تحويل البيانات إلى DataFrame بنفس ترتيب الأعمدة الذي تدرب عليه النموذج
+        columns = ['GarageCars', 'Utilities', 'OverallQual', 'Foundation', 'Heating', 'CentralAir', 'KitchenQual']
+        input_df = {col: [input_data.get(col, None)] for col in columns}
+        input_df = np.array(list(input_df.values())).T
+        
+        # تحويل إلى DataFrame (يحتاج تعديل حسب نوع preprocessor لديك)
+        import pandas as pd
+        input_df = pd.DataFrame(input_df, columns=columns)
+        
+        # تطبيق الـ preprocessor
+        processed_input = preprocessor.transform(input_df)
+        
+        # التنبؤ (النموذج مدرب على اللوجاريثم، نعيده للحجم الأصلي)
+        prediction_log = model.predict(processed_input)
+        prediction = np.expm1(prediction_log)
+        
+        return jsonify({"predicted_price": prediction[0]})
+    
     except Exception as e:
         return jsonify({"error": str(e)})
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
+# تشغيل التطبيق
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)
