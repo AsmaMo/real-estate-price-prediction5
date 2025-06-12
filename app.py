@@ -4,7 +4,7 @@ import numpy as np
 import joblib
 from sklearn.base import RegressorMixin, BaseEstimator, clone
 
-# تعريف الكلاس هنا
+# 🔥 أضف هذا التعريف لأنه ضروري لعملية فك التحميل (unpickling)
 class MedianVotingRegressor(RegressorMixin, BaseEstimator):
     def __init__(self, estimators):
         self.estimators = estimators
@@ -23,10 +23,10 @@ class MedianVotingRegressor(RegressorMixin, BaseEstimator):
         ])
         return np.median(predictions, axis=1)
 
-# تحميل النموذج
-preprocessor, model = joblib.load("real_estate_pipeline.joblib")
-
+# 🔥 بعد تعريف الكلاس يصبح بإمكان joblib أن يعيد تحميل الكائن
 app = Flask(__name__)
+
+preprocessor, model = joblib.load("real_estate_pipeline.joblib")
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -39,3 +39,6 @@ def predict():
         return jsonify({"predicted_price": round(float(prediction), 2)})
     except Exception as e:
         return jsonify({"error": str(e)})
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=5000)
